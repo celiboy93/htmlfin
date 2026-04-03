@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTML Link Extractor</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #12121a;
+      --surface2: #1a1a26;
+      --border: #2a2a3a;
+      --accent: #6c5ce7;
+      --accent2: #a29bfe;
+      --green: #00e676;
+      --text: #e0e0e0;
+      --text2: #8888aa;
+      --red: #ff5252;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 1.8rem; color: var(--accent2); margin-bottom: 8px; }
+    header p { color: var(--text2); font-size: 0.85rem; }
+    .search-box { display: flex; gap: 10px; margin-bottom: 30px; }
+    .search-box input {
+      flex: 1; padding: 14px 18px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 10px;
+      color: var(--text); font-size: 0.95rem; font-family: inherit; outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .search-box button {
+      padding: 14px 28px; background: var(--accent); color: #fff;
+      border: none; border-radius: 10px; font-family: inherit;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .search-box button:hover { background: var(--accent2); color: var(--bg); }
+    .search-box button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loader { display: none; text-align: center; padding: 40px; }
+    .loader.active { display: block; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader p { color: var(--text2); font-size: 0.85rem; }
+    .error-box {
+      display: none; background: rgba(255,82,82,0.1);
+      border: 1px solid var(--red); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 20px;
+      color: var(--red); font-size: 0.85rem;
+    }
+    .error-box.active { display: block; }
+    .stats { display: none; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .stats.active { display: flex; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 20px; flex: 1;
+      min-width: 140px; text-align: center;
+    }
+    .stat-card .num { font-size: 1.6rem; font-weight: 700; color: var(--green); }
+    .stat-card .label { font-size: 0.75rem; color: var(--text2); margin-top: 4px; }
+    .toolbar {
+      display: none; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 10px;
+    }
+    .toolbar.active { display: flex; }
+    .toolbar input {
+      padding: 10px 14px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: inherit; font-size: 0.82rem;
+      outline: none; width: 260px;
+    }
+    .toolbar input:focus { border-color: var(--accent); }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm {
+      padding: 8px 16px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); font-family: inherit; font-size: 0.78rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent2); }
+    .btn-sm.copied { border-color: var(--green); color: var(--green); }
+    #results { display: none; }
+    #results.active { display: block; }
+    .domain-group {
+      margin-bottom: 16px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .domain-header {
+      padding: 12px 18px; background: var(--surface2);
+      display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; user-select: none; transition: background 0.2s;
+    }
+    .domain-header:hover { background: var(--border); }
+    .domain-header .domain-name { font-weight: 600; font-size: 0.88rem; color: var(--accent2); }
+    .domain-header .count {
+      background: var(--accent); color: #fff; font-size: 0.7rem;
+      padding: 3px 10px; border-radius: 20px; font-weight: 600;
+    }
+    .domain-links { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .domain-links.open { max-height: 50000px; }
+    .link-item {
+      padding: 10px 18px; border-top: 1px solid var(--border);
+      font-size: 0.78rem; word-break: break-all;
+      display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+    }
+    .link-item:hover { background: rgba(108,92,231,0.06); }
+    .link-item a { color: var(--text); text-decoration: none; flex: 1; transition: color 0.15s; }
+    .link-item a:hover { color: var(--accent2); }
+    .copy-one {
+      background: none; border: none; color: var(--text2); cursor: pointer;
+      font-size: 0.75rem; font-family: inherit; padding: 4px 8px;
+      border-radius: 4px; transition: all 0.15s; white-space: nowrap;
+    }
+    .copy-one:hover { color: var(--accent2); background: var(--surface2); }
+    .hidden { display: none !important; }
+    @media (max-width: 600px) {
+      .search-box { flex-direction: column; }
+      .toolbar { flex-direction: column; }
+      .toolbar input { width: 100%; }
+      header h1 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>&lt;/&gt; HTML Link Extractor</h1>
+      <p>Enter a URL to extract all https:// links from its HTML source</p>
+    </header>
+    <div class="search-box">
+      <input type="text" id="urlInput" placeholder="Enter URL e.g. https://example.com" autocomplete="off" />
+      <button id="extractBtn" onclick="extractLinks()">Extract</button>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      <p>Fetching &amp; analyzing HTML source...</p>
+    </div>
+    <div class="stats" id="stats">
+      <div class="stat-card"><div class="num" id="totalLinks">0</div><div class="label">Total Links</div></div>
+      <div class="stat-card"><div class="num" id="totalDomains">0</div><div class="label">Domains</div></div>
+      <div class="stat-card"><div class="num" id="targetDomain">-</div><div class="label">Scanned</div></div>
+    </div>
+    <div class="toolbar" id="toolbar">
+      <input type="text" id="filterInput" placeholder="Filter links... (e.g. .js, cdn, api)" oninput="filterLinks()" />
+      <div class="btn-group">
+        <button class="btn-sm" id="copyAllBtn" onclick="copyAll()">Copy All</button>
+        <button class="btn-sm" onclick="exportTxt()">Export .txt</button>
+        <button class="btn-sm" onclick="expandAll()">Expand All</button>
+        <button class="btn-sm" onclick="collapseAll()">Collapse All</button>
+      </div>
+    </div>
+    <div id="results"></div>
+  </div>
+  <script>
+    let currentData = null;
+    document.getElementById("urlInput").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") extractLinks();
+    });
+
+    async function extractLinks() {
+      var urlInput = document.getElementById("urlInput");
+      var btn = document.getElementById("extractBtn");
+      var loader = document.getElementById("loader");
+      var errorBox = document.getElementById("errorBox");
+      var stats = document.getElementById("stats");
+      var toolbar = document.getElementById("toolbar");
+      var results = document.getElementById("results");
+      var url = urlInput.value.trim();
+      if (!url) { showError("Please enter a URL"); return; }
+      errorBox.classList.remove("active");
+      stats.classList.remove("active");
+      toolbar.classList.remove("active");
+      results.classList.remove("active");
+      results.innerHTML = "";
+      loader.classList.add("active");
+      btn.disabled = true;
+      btn.textContent = "Extracting...";
+      try {
+        var res = await fetch("/api/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url })
+        });
+        var data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || "Unknown error");
+        currentData = data;
+        renderResults(data);
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        loader.classList.remove("active");
+        btn.disabled = false;
+        btn.textContent = "Extract";
+      }
+    }
+
+    function showError(msg) {
+      var errorBox = document.getElementById("errorBox");
+      errorBox.textContent = msg;
+      errorBox.classList.add("active");
+    }
+
+    function renderResults(data) {
+      var stats = document.getElementById("stats");
+      var toolbar = document.getElementById("toolbar");
+      var results = document.getElementById("results");
+      document.getElementById("totalLinks").textContent = data.totalLinks;
+      document.getElementById("totalDomains").textContent = data.totalDomains;
+      try { document.getElementById("targetDomain").textContent = new URL(data.targetUrl).hostname; }
+      catch(e) { document.getElementById("targetDomain").textContent = "-"; }
+      stats.classList.add("active");
+      toolbar.classList.add("active");
+      var html = "";
+      var sortedDomains = Object.keys(data.categories).sort(function(a, b) {
+        return data.categories[b].length - data.categories[a].length;
+      });
+      for (var i = 0; i < sortedDomains.length; i++) {
+        var domain = sortedDomains[i];
+        var links = data.categories[domain];
+        var linksHtml = "";
+        for (var j = 0; j < links.length; j++) {
+          linksHtml += '<div class="link-item" data-url="' + escapeAttr(links[j]) + '">' +
+            '<a href="' + escapeAttr(links[j]) + '" target="_blank" rel="noopener">' + escapeHtml(links[j]) + '</a>' +
+            '<button class="copy-one" onclick="copyOne(this,\'' + escapeJs(links[j]) + '\')">copy</button>' +
+            '</div>';
+        }
+        html += '<div class="domain-group" data-domain="' + escapeAttr(domain) + '">' +
+          '<div class="domain-header" onclick="toggleGroup(this)">' +
+          '<span class="domain-name">' + escapeHtml(domain) + '</span>' +
+          '<span class="count">' + links.length + '</span></div>' +
+          '<div class="domain-links">' + linksHtml + '</div></div>';
+      }
+      results.innerHTML = html;
+      results.classList.add("active");
+    }
+
+    function toggleGroup(header) { header.nextElementSibling.classList.toggle("open"); }
+    function expandAll() { document.querySelectorAll(".domain-links").forEach(function(el) { el.classList.add("open"); }); }
+    function collapseAll() { document.querySelectorAll(".domain-links").forEach(function(el) { el.classList.remove("open"); }); }
+
+    function filterLinks() {
+      var query = document.getElementById("filterInput").value.toLowerCase().trim();
+      document.querySelectorAll(".domain-group").forEach(function(group) {
+        var visibleCount = 0;
+        group.querySelectorAll(".link-item").forEach(function(item) {
+          if (!query || item.dataset.url.toLowerCase().indexOf(query) !== -1) {
+            item.classList.remove("hidden"); visibleCount++;
+          } else { item.classList.add("hidden"); }
+        });
+        if (visibleCount === 0) group.classList.add("hidden");
+        else group.classList.remove("hidden");
+        var badge = group.querySelector(".count");
+        if (badge) badge.textContent = visibleCount;
+      });
+    }
+
+    function copyAll() {
+      if (!currentData) return;
+      navigator.clipboard.writeText(currentData.links.join("\n")).then(function() {
+        var btn = document.getElementById("copyAllBtn");
+        btn.textContent = "Copied!"; btn.classList.add("copied");
+        setTimeout(function() { btn.textContent = "Copy All"; btn.classList.remove("copied"); }, 1500);
+      });
+    }
+
+    function copyOne(btn, link) {
+      navigator.clipboard.writeText(link).then(function() {
+        btn.textContent = "copied!";
+        setTimeout(function() { btn.textContent = "copy"; }, 1200);
+      });
+    }
+
+    function exportTxt() {
+      if (!currentData) return;
+      var blob = new Blob([currentData.links.join("\n")], { type: "text/plain" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      try { a.download = "links-" + new URL(currentData.targetUrl).hostname + ".txt"; }
+      catch(e) { a.download = "links.txt"; }
+      a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    function escapeHtml(s) { return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+    function escapeAttr(s) { return s.replace(/&/g,"&amp;").replace(/"/g,"&quot;"); }
+    function escapeJs(s) { return s.replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
+  </script>
+</body>
+</html>
