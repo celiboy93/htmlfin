@@ -1,0 +1,12 @@
+{
+  "name": "html-link-extractor",
+  "version": "1.0.0",
+  "description": "Extract all https links from any webpage",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "node-fetch": "2.7.0",
+    "cheerio": "1.0.0-rc.12"
+  }
+}
